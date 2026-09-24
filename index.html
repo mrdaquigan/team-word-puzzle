@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Word Puzzle Rumble</title>
+<style>
+:root{
+  --bg:#241206;         /* deep brand brown background */
+  --panel:#3b2314;       /* brand dark brown - panels */
+  --panel2:#4f2e1a;      /* lighter brown surface */
+  --line:#6b4025;        /* warm brown border */
+  --text:#fbeee2;        /* warm off-white text */
+  --muted:#cba385;       /* muted tan */
+  --accent:#f05a28;      /* brand orange - primary actions / "your turn" */
+  --accent2:#ffb143;     /* warm gold - success / found */
+  --accent2-text:#3b2314;/* dark text for use on the gold accent */
+  --danger:#ec1c24;      /* brand red - danger / low timer */
+  --reveal:#ffb143;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
+#app{max-width:1000px;margin:0 auto;padding:20px 16px 48px;}
+h1{font-size:22px;margin:0 0 4px;} h2{font-size:16px;margin:0 0 10px;color:var(--muted);}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px;}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px;}
+input[type=text],input[type=number],textarea,select{width:100%;background:var(--panel2);border:1px solid var(--line);
+border-radius:8px;color:var(--text);padding:9px 10px;font-size:14px;font-family:inherit;}
+textarea{min-height:80px;font-family:ui-monospace,Menlo,monospace;font-size:11px;}
+button{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer;}
+button.secondary{background:var(--panel2);color:var(--text);border:1px solid var(--line);}
+button.danger{background:var(--danger);} button.good{background:var(--accent2);color:var(--accent2-text);}
+button:disabled{opacity:.4;cursor:not-allowed;}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.pill{display:inline-block;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12px;color:var(--muted);}
+.pill.on{background:var(--accent2);color:var(--accent2-text);border-color:transparent;font-weight:700;}
+.pill.warn{background:var(--danger);color:#fff;border-color:transparent;}
+.teamblock{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px;background:var(--panel2);}
+.small{font-size:12px;color:var(--muted);}
+.linkbox{display:flex;gap:8px;align-items:center;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:6px 0;font-size:13px;word-break:break-all;}
+.linkbox button{flex:0 0 auto;padding:5px 10px;font-size:12px;}
+.timer{font-size:44px;font-weight:800;font-variant-numeric:tabular-nums;} .timer.low{color:var(--danger);}
+.timer.big{font-size:88px;text-align:center;}
+.wordbank{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.wordchip{padding:4px 10px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);font-size:13px;font-weight:600;}
+.wordchip.found{background:var(--accent2);color:var(--accent2-text);text-decoration:line-through;border-color:transparent;}
+.wordchip.revealed{background:var(--reveal);color:var(--accent2-text);border-color:transparent;}
+#puzzleWrap,.puzzleWrap{overflow-x:auto;padding:6px 0;}
+#puzzleWrap table,.puzzleWrap table{border-collapse:collapse;margin:0 auto;user-select:none;-webkit-user-select:none;}
+#puzzleWrap td,.puzzleWrap td{width:30px;height:30px;text-align:center;vertical-align:middle;font-weight:700;font-size:14px;
+border:1px solid var(--line);cursor:pointer;background:var(--panel);color:var(--text);text-transform:uppercase;}
+.big-puzzle td{width:38px;height:38px;font-size:17px;cursor:default;}
+#puzzleWrap td.sel{background:var(--accent);color:#fff;}
+#puzzleWrap td.found,.puzzleWrap td.found{background:var(--accent2);color:var(--accent2-text);}
+#puzzleWrap td.reveal,.puzzleWrap td.reveal{background:var(--reveal);color:var(--accent2-text);}
+#puzzleWrap td.bad{background:var(--danger)!important;color:#fff;}
+.turnbanner{padding:10px 14px;border-radius:10px;font-weight:700;text-align:center;margin-bottom:12px;}
+.turnbanner.yours{background:var(--accent2);color:var(--accent2-text);}
+.turnbanner.pending{background:rgba(240,90,40,.22);color:var(--text);border:1px solid var(--accent);}
+.turnbanner.theirs{background:var(--panel2);color:var(--muted);border:1px solid var(--line);}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;} @media (max-width:640px){.grid2{grid-template-columns:1fr;}}
+.scoreline{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);}
+.scoreline:last-child{border-bottom:none;}
+.attemptsdots span{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--line);margin-right:3px;}
+.attemptsdots span.used{background:var(--danger);}
+details{margin-top:10px;} summary{cursor:pointer;color:var(--muted);font-size:13px;}
+footer.note{font-size:12px;color:var(--muted);margin-top:18px;text-align:center;}
+
+.brandheader{display:flex;align-items:center;gap:14px;}
+.logo-badge svg{display:block;}
+.tabbar{display:flex;gap:8px;padding:10px;}
+.tabbtn{background:var(--panel2);color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;}
+.tabbtn.active{background:var(--accent);color:#fff;border-color:transparent;}
+
+.lockwrap{position:relative;}
+.lockwrap.locked .blurtarget{filter:blur(6px);pointer-events:none;user-select:none;}
+.lockoverlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;
+  padding:16px;font-weight:700;background:rgba(36,18,6,.55);border-radius:12px;z-index:2;color:var(--text);}
+.lockoverlay div{max-width:260px;}
+
+.livedisplay .card{text-align:center;}
+.livedisplay .wordbank{justify-content:center;}
+
+.wordchip.special{border:2px solid var(--danger);}
+.wordchip .starmark{margin-left:2px;}
+
+.winnercard{position:relative;overflow:hidden;padding:40px 20px;text-align:center;}
+.winnercard .trophy{font-size:72px;animation:trophybounce 1.2s ease-in-out infinite;}
+@keyframes trophybounce{0%,100%{transform:translateY(0);}50%{transform:translateY(-14px);}}
+.winnercard .mvpbox{margin-top:16px;display:inline-block;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 18px;font-size:15px;}
+.fireworks{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
+.fw{position:absolute;font-size:28px;opacity:0;animation:fw 1.8s ease-out infinite;}
+@keyframes fw{0%{opacity:0;transform:translateY(20px) scale(.4);}20%{opacity:1;}60%{opacity:1;transform:translateY(-40px) scale(1.2);}100%{opacity:0;transform:translateY(-70px) scale(.8);}}
+</style>
+</head>
+<body>
+<div id="app"><div class="card"><h1>Loading…</h1></div></div>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* =========================================================================
+   FIREBASE CONFIG — replace with your own project's config.
+   1. Go to https://console.firebase.google.com -> create a free project
+   2. Build > Realtime Database > Create database > start in TEST MODE
+      (or set rules to {"rules": {".read": true, ".write": true}} — this
+      app has no login system, so it relies on the link itself being secret)
+   3. Project settings (gear icon) > General > "Your apps" > Web app (</>)
+      copy the firebaseConfig object it gives you and paste it below.
+   ========================================================================= */
+var firebaseConfig = {
+  apiKey: "AIzaSyCJhx6LHf57zNyRqBUURB0YHUF-eejLkOM",
+  authDomain: "word-puzzle-2e07c.firebaseapp.com",
+  databaseURL: "https://word-puzzle-2e07c-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "word-puzzle-2e07c",
+  storageBucket: "word-puzzle-2e07c.firebasestorage.app",
+  messagingSenderId: "490768519941",
+  appId: "1:490768519941:web:a8cb691e01b8b9a4d75d6c",
+  measurementId: "G-VHF3VZE6F1"
+};
+var FIREBASE_READY = firebaseConfig.apiKey && firebaseConfig.apiKey.indexOf('YOUR_')!==0;
+var db=null, serverOffset=0, isOnline=false;
+if(FIREBASE_READY){
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+  db.ref('.info/serverTimeOffset').on('value', function(snap){ serverOffset = snap.val()||0; });
+  db.ref('.info/connected').on('value', function(snap){ isOnline=!!snap.val(); updateConnPill(); });
+}
+function now(){ return Date.now()+serverOffset; }
+function updateConnPill(){
+  var p=document.getElementById('connPill'); if(!p) return;
+  p.textContent = isOnline ? '🟢 Live' : '🟠 Connecting…';
+  p.className = 'pill '+(isOnline?'on':'warn');
+}
+
+var STATE=null, isAdmin=false, teamParam=null, mySelPlayer=null, adminTab='controls';
+var dragging=false, dragStart=null, dragTeamId=null, tickTimer=null, stateRef=null;
+
+var params = new URLSearchParams(location.search);
+var adminParam = params.get('admin');
+teamParam = params.get('t');
+var gParam = params.get('g');
+
+function uid(n){n=n||8;var s='';var c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';for(var i=0;i<n;i++)s+=c[Math.floor(Math.random()*c.length)];return s;}
+function el(html){var d=document.createElement('div');d.innerHTML=html.trim();return d.firstChild;}
+function $(sel,root){return (root||document).querySelector(sel);}
+function findTeam(id){return STATE&&STATE.teams.find(function(t){return t.id===id;});}
+function gameId(){ return adminParam || gParam; }
+
+function linkFor(extra){
+  var p = new URLSearchParams();
+  Object.keys(extra).forEach(function(k){ p.set(k, extra[k]); });
+  return location.origin + location.pathname + '?' + p.toString();
+}
+
+/* ---------- live sync via Firebase Realtime Database ---------- */
+/* Firebase RTDB silently deletes keys whose value is an empty object ({}),
+   so team.found / team.wrong (which start as {}) come back as undefined
+   after a round trip. Normalize on every read so nothing downstream crashes. */
+function normalizeState(s){
+  if(!s) return s;
+  s.teams=(s.teams||[]).map(function(t){ t.found=t.found||{}; t.wrong=t.wrong||{}; return t; });
+  s.timer=s.timer||{duration:300,remaining:300,running:false,startedAt:null};
+  s.gameOver=!!s.gameOver;
+  return s;
+}
+function pushState(){
+  STATE.rev=(STATE.rev||0)+1;
+  if(stateRef) stateRef.set(STATE);
+}
+var subscribeTimeout=null;
+function subscribe(){
+  var id=gameId(); if(!id) return;
+  stateRef = db.ref('games/'+id);
+  subscribeTimeout=setTimeout(function(){
+    if(!STATE) renderConnectionProblem('Still waiting to hear back from Firebase after 8 seconds. This is usually a Realtime Database rules problem — open Firebase console → Realtime Database → Rules and make sure read/write are allowed.');
+  },8000);
+  stateRef.on('value', function(snap){
+    if(subscribeTimeout){clearTimeout(subscribeTimeout);subscribeTimeout=null;}
+    var val = snap.val();
+    if(val){ STATE=normalizeState(val); rerender(); }
+    else { STATE=null; renderGameNotFound(); }
+  }, function(err){
+    if(subscribeTimeout){clearTimeout(subscribeTimeout);subscribeTimeout=null;}
+    renderConnectionProblem('Firebase reported an error: "'+err.message+'". This almost always means your Realtime Database rules are blocking read/write — open Firebase console → Realtime Database → Rules and set them to allow read/write, then reload this page.');
+  });
+}
+function renderGameNotFound(){
+  $('#app').innerHTML=brandHeader()+'<div class="card"><h2 style="color:var(--danger)">Game not found</h2>'+
+    '<p>No game exists yet at this link. If you\'re the organizer, go to the page with no <code>?admin=</code> or <code>?t=</code> in the URL and create a new game. If you\'re a player, double-check the link your organizer sent you.</p></div>';
+}
+function renderConnectionProblem(msg){
+  $('#app').innerHTML=brandHeader()+'<div class="card"><h2 style="color:var(--danger)">Can\'t reach the live game</h2><p>'+msg+'</p></div>';
+}
+
+function logoBadge(){
+  return '<div class="logo-badge">'+
+    /* REPLACE LOGO: swap this <svg> for <img src="your-logo.png" alt="logo" style="width:44px;height:44px;object-fit:contain">
+       or any artwork you like — this is just a placeholder monogram in your brand colors. */
+    '<svg viewBox="0 0 64 64" width="44" height="44" xmlns="http://www.w3.org/2000/svg">'+
+    '<rect width="64" height="64" rx="14" fill="#f05a28"/>'+
+    '<text x="32" y="41" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800" fill="#3b2314" text-anchor="middle">WR</text>'+
+    '</svg></div>';
+}
+function brandHeader(subtitle, extra){
+  return '<div class="card brandheader">'+logoBadge()+
+    '<div style="flex:1"><h1>🧩 Word Puzzle Rumble</h1>'+(subtitle?'<h2>'+subtitle+'</h2>':'')+'</div>'+
+    (extra||'')+'</div>';
+}
+
+/* ---------- render dispatcher ---------- */
+function rerender(){
+  if(!FIREBASE_READY){ renderFirebaseSetupNeeded(); return; }
+  if(!STATE){
+    if(gameId()) return; /* waiting on the live listener to deliver state */
+    renderSetup();
+    return;
+  }
+  if(STATE.gameOver){ if(tickTimer){clearInterval(tickTimer);tickTimer=null;} renderWinnerScreen(); return; }
+  if(isAdmin) renderAdmin();
+  else if(teamParam && findTeam(teamParam)) renderTeamView(teamParam);
+  else renderNoAccess();
+  tickClock();
+}
+
+function renderFirebaseSetupNeeded(){
+  $('#app').innerHTML = brandHeader() +
+    '<div class="card"><h2 style="color:var(--danger)">One-time setup needed</h2>'+
+    '<p>This game now syncs everyone in real time through Firebase, so it needs a free Firebase project connected. '+
+    'Open the HTML file, find the <code>firebaseConfig</code> object near the top of the script, and paste in your project\'s config. '+
+    'Details are in the comment right above it.</p></div>';
+}
+
+/* ============ SETUP ============ */
+function renderSetup(){
+  var app=$('#app');
+  app.innerHTML = brandHeader('Set up teams and puzzles')+
+    '<div class="card"><p class="small">Paste in HTML from any word-search generator — just the &lt;table&gt; markup — plus the list of words to find.</p></div>'+
+    '<div class="card"><h2>Teams</h2><div id="teamsSetup"></div><button class="secondary" id="addTeamBtn" type="button">+ Add team</button></div>'+
+    '<div class="card"><label>Timer default (minutes)</label><input type="number" id="setupDuration" value="5" min="1" style="max-width:120px">'+
+    '<div style="margin-top:14px"><button id="createBtn" type="button">Create game &amp; get links</button></div></div>';
+  var teamsWrap=$('#teamsSetup'); var teamCount=0;
+  function addTeamRow(name){
+    teamCount++;
+    var row=el(
+      '<div class="teamblock">'+
+      '<label>Team name</label><input type="text" class="tname" value="'+(name||'Team '+teamCount)+'">'+
+      '<label>Player names (comma separated)</label><input type="text" class="tplayers" placeholder="Alice, Bob, Chris">'+
+      '<label>Word list (comma or newline separated). Add * after a word for a 3-point bonus word, e.g. MANILA, BORACAY*, CEBU</label><textarea class="twords" placeholder="MANILA, BORACAY*, CEBU"></textarea>'+
+      '<label>Puzzle table HTML (paste the &lt;table&gt;…&lt;/table&gt;)</label><textarea class="thtml" placeholder="<table>...</table>"></textarea>'+
+      '<div class="row" style="margin-top:8px"><button class="danger removeTeam" type="button">Remove team</button></div></div>');
+    teamsWrap.appendChild(row);
+    row.querySelector('.removeTeam').onclick=function(){row.remove();};
+  }
+  addTeamRow('Team A'); addTeamRow('Team B');
+  $('#addTeamBtn').onclick=function(){addTeamRow();};
+  $('#createBtn').onclick=function(){
+    var blocks=teamsWrap.querySelectorAll('.teamblock'); if(blocks.length<1){alert('Add at least one team.');return;}
+    var teams=[],ok=true;
+    blocks.forEach(function(b,i){
+      var name=b.querySelector('.tname').value.trim()||('Team '+(i+1));
+      var players=b.querySelector('.tplayers').value.split(',').map(function(s){return s.trim();}).filter(Boolean);
+      var words=b.querySelector('.twords').value.split(/[,\n]/).map(function(s){return s.trim();}).filter(Boolean).map(function(s){
+        var special=/\*\s*$/.test(s);
+        return {text:s.replace(/\*\s*$/,'').trim().toUpperCase(),special:special};
+      });
+      var html=b.querySelector('.thtml').value.trim();
+      if(!html||words.length===0) ok=false;
+      teams.push({id:'t'+(i+1)+'_'+uid(4),name:name,players:players,words:words,puzzleHTML:html,found:{},wrong:{}});
+    });
+    if(!ok){alert('Each team needs a word list and a pasted puzzle table.');return;}
+    var duration=Math.max(1,parseInt($('#setupDuration').value,10)||5)*60;
+    var adminKey=uid(10);
+    STATE={adminKey:adminKey,teams:teams,currentTeam:teams[0].id,
+      timer:{duration:duration,remaining:duration,running:false,startedAt:null},revealed:false,gameOver:false,winner:null,rev:1};
+    history.replaceState(null,'','?admin='+adminKey);
+    adminParam=adminKey; isAdmin=true;
+    db.ref('games/'+adminKey).set(STATE).then(function(){
+      subscribe(); rerender();
+    });
+  };
+}
+
+function renderNoAccess(){
+  $('#app').innerHTML=brandHeader()+'<div class="card"><p>This game is running. Ask your organizer for your team\'s link to join.</p></div>';
+}
+
+/* ============ ADMIN ============ */
+function fmtTime(s){s=Math.max(0,Math.round(s));var m=Math.floor(s/60),r=s%60;return (m<10?'0':'')+m+':'+(r<10?'0':'')+r;}
+function currentRemaining(){var t=STATE.timer;if(t.running&&t.startedAt){var el=(now()-t.startedAt)/1000;return Math.max(0,t.remaining-el);}return t.remaining;}
+function timeUp(){ return currentRemaining()<=0 && STATE.timer.remaining<STATE.timer.duration; }
+
+/* ---------- scoring: 1 pt/word, 3 pts for words marked * in setup ---------- */
+function specialSet(team){ var s={}; (team.words||[]).forEach(function(o){ if(o.special) s[o.text]=true; }); return s; }
+function teamPoints(team){ var sp=specialSet(team); return Object.keys(team.found||{}).reduce(function(sum,w){ return sum+(sp[w]?3:1); },0); }
+function playerWordCounts(team){ var c={}; Object.keys(team.found||{}).forEach(function(w){ var by=team.found[w].by; c[by]=(c[by]||0)+1; }); return c; }
+function playerPoints(team){ var sp=specialSet(team),p={}; Object.keys(team.found||{}).forEach(function(w){ var by=team.found[w].by; p[by]=(p[by]||0)+(sp[w]?3:1); }); return p; }
+function computeWinner(){
+  var scored=STATE.teams.map(function(t){return {t:t,points:teamPoints(t)};});
+  var maxPts=Math.max.apply(null,scored.map(function(s){return s.points;}));
+  var winners=scored.filter(function(s){return s.points===maxPts;});
+  var tie=winners.length>1;
+  var winTeam=winners[0].t;
+  var wc=playerWordCounts(winTeam), pp=playerPoints(winTeam);
+  var mvpName=null,mvpCount=-1;
+  Object.keys(wc).forEach(function(p){ if(wc[p]>mvpCount){mvpCount=wc[p];mvpName=p;} });
+  return {tie:tie,teamNames:winners.map(function(w){return w.t.name;}),teamId:winTeam.id,points:maxPts,
+    mvpName:mvpName||'—',mvpWords:mvpCount<0?0:mvpCount,mvpPoints:mvpName?(pp[mvpName]||0):0};
+}
+function fireworksHTML(){
+  var icons=['🎉','✨','🎆','🎇','⭐'],out='';
+  for(var i=0;i<14;i++){
+    var left=Math.round(Math.random()*90)+5, top=Math.round(Math.random()*70)+5, delay=(Math.random()*1.6).toFixed(2);
+    out+='<span class="fw" style="left:'+left+'%;top:'+top+'%;animation-delay:'+delay+'s">'+icons[Math.floor(Math.random()*icons.length)]+'</span>';
+  }
+  return out;
+}
+function renderWinnerScreen(){
+  var w=STATE.winner||computeWinner();
+  var html=brandHeader()+'<div class="card winnercard"><div class="fireworks">'+fireworksHTML()+'</div>';
+  if(w.tie){
+    html+='<div class="trophy">🤝</div><h1 style="font-size:28px">It\'s a tie!</h1><p style="font-size:18px">'+w.teamNames.join(' &amp; ')+' — '+w.points+' points each!</p>';
+  }else{
+    html+='<div class="trophy">🏆</div><h1 style="font-size:28px">'+w.teamNames[0]+' wins!</h1><p style="font-size:18px">'+w.points+' points</p>'+
+      '<div class="mvpbox">🥇 MVP: <b>'+w.mvpName+'</b> — '+w.mvpWords+' word'+(w.mvpWords===1?'':'s')+' found ('+w.mvpPoints+' pts)</div>';
+  }
+  if(isAdmin) html+='<div style="margin-top:20px"><button class="secondary" id="backToGameBtn" type="button">↩ Back to game</button></div>';
+  html+='</div>';
+  $('#app').innerHTML=html;
+  if(isAdmin){ $('#backToGameBtn').onclick=function(){STATE.gameOver=false;pushState();rerender();}; }
+}
+
+function renderAdmin(){
+  var app=$('#app');
+  var connPill='<span class="pill" id="connPill">🟠 Connecting…</span>';
+  var tabbarHtml='<div class="card tabbar">'+
+    '<button class="tabbtn '+(adminTab==='controls'?'active':'')+'" data-tab="controls" type="button">⚙️ Controls</button>'+
+    '<button class="tabbtn '+(adminTab==='display'?'active':'')+'" data-tab="display" type="button">📺 Live Display (share this screen)</button>'+
+    '<div style="flex:1"></div>'+connPill+
+    '</div>';
+
+  if(adminTab==='display'){ renderAdminLiveDisplay(app,tabbarHtml); updateConnPill(); return; }
+
+  var adminLink = linkFor({admin:STATE.adminKey});
+  var teamLinks=STATE.teams.map(function(t){return linkFor({g:STATE.adminKey,t:t.id});});
+  var html=brandHeader('Organizer')+tabbarHtml;
+  html+='<div class="card"><label>Your admin link (bookmark this — works from any device)</label>'+
+    '<div class="linkbox"><span>'+adminLink+'</span><button class="secondary copyBtn" data-v="'+adminLink+'" type="button">Copy</button></div></div>';
+  html+='<div class="card"><h2>Team links — share one per team</h2>';
+  STATE.teams.forEach(function(t,i){
+    html+='<div class="linkbox"><span><b>'+t.name+':</b> '+teamLinks[i]+'</span><button class="secondary copyBtn" data-v="'+teamLinks[i]+'" type="button">Copy</button></div>';
+  });
+  html+='</div>';
+  html+='<div class="card"><h2>Timer</h2><div class="row">'+
+    '<div class="timer'+(currentRemaining()<=30?' low':'')+'" id="adminClock">'+fmtTime(currentRemaining())+'</div><div style="flex:1"></div>'+
+    '<input type="number" id="minInput" style="max-width:90px" min="1" value="'+Math.round(STATE.timer.duration/60)+'"> <span class="small">min</span>'+
+    '<button class="secondary" id="setDurBtn" type="button">Set</button>'+
+    '<button id="startBtn" type="button">'+(STATE.timer.running?'Pause':'Start')+'</button>'+
+    '<button class="secondary" id="resetBtn" type="button">Reset</button></div>'+
+    (timeUp()?'<div class="pill warn" style="margin-top:10px">TIME\'S UP</div>':'')+
+    '</div>';
+  html+='<div class="card"><h2>Turn control</h2><div class="row">';
+  STATE.teams.forEach(function(t){html+='<button class="'+(STATE.currentTeam===t.id?'good':'secondary')+' turnBtn" data-tid="'+t.id+'" type="button">'+t.name+'</button>';});
+  html+='</div><p class="small" style="margin-top:8px">Only the team on the clock can play, and only once the timer is running — everyone else sees their word bank and puzzle blurred and locked. Reveal answers, and end the game, from the Live Display tab.</p></div>';
+  html+='<div class="card"><h2>Progress</h2>';
+  STATE.teams.forEach(function(t){
+    var foundN=Object.keys(t.found).length;
+    html+='<div class="scoreline"><span>'+t.name+'</span><span class="pill'+(STATE.currentTeam===t.id?' on':'')+'">'+(STATE.currentTeam===t.id?'ON THE CLOCK':'waiting')+'</span><span class="small">'+foundN+' / '+t.words.length+' found · '+teamPoints(t)+' pts</span></div>';
+  });
+  html+='</div>';
+  app.innerHTML=html;
+  updateConnPill();
+
+  app.querySelectorAll('.tabbtn').forEach(function(b){b.onclick=function(){adminTab=b.dataset.tab;rerender();};});
+  app.querySelectorAll('.copyBtn').forEach(function(b){
+    b.onclick=function(){navigator.clipboard&&navigator.clipboard.writeText(b.dataset.v).catch(function(){});b.textContent='Copied!';setTimeout(function(){b.textContent='Copy';},1200);};
+  });
+  $('#setDurBtn').onclick=function(){var mins=Math.max(1,parseInt($('#minInput').value,10)||5);STATE.timer={duration:mins*60,remaining:mins*60,running:false,startedAt:null};pushState();rerender();};
+  $('#startBtn').onclick=function(){
+    if(STATE.timer.running){STATE.timer.remaining=currentRemaining();STATE.timer.running=false;STATE.timer.startedAt=null;}
+    else{STATE.timer.running=true;STATE.timer.startedAt=now();}
+    pushState();rerender();
+  };
+  $('#resetBtn').onclick=function(){STATE.timer.remaining=STATE.timer.duration;STATE.timer.running=false;STATE.timer.startedAt=null;pushState();rerender();};
+  app.querySelectorAll('.turnBtn').forEach(function(b){b.onclick=function(){
+    STATE.currentTeam=b.dataset.tid;
+    /* switching turns pauses the clock so the new team doesn't inherit a running timer */
+    STATE.timer.remaining=currentRemaining();STATE.timer.running=false;STATE.timer.startedAt=null;
+    pushState();rerender();
+  };});
+}
+
+/* ---- Admin "Live Display" tab: big, read-only, meant to be screen-shared.
+   Carries the timer start/pause/reset, the answer-reveal toggle, and end-game,
+   so the organizer can run everything from the one screen they're sharing. ---- */
+function renderAdminLiveDisplay(app,tabbarHtml){
+  var team=findTeam(STATE.currentTeam);
+  var connPill='<span class="pill" id="connPill">🟠 Connecting…</span>';
+  var html=brandHeader('', connPill)+tabbarHtml;
+  html+='<div class="livedisplay">';
+  if(!team){
+    html+='<div class="card"><h2>No team selected yet</h2></div>';
+  }else{
+    html+='<div class="card"><h1 style="font-size:30px">'+team.name+'</h1>'+
+      '<div class="turnbanner '+(STATE.timer.running?'yours':'pending')+'">'+
+      (STATE.timer.running?'⏱ IN PROGRESS':(timeUp()?'⏱ TIME\'S UP':'⏳ GET READY — waiting for timer to start'))+'</div>'+
+      '<div class="timer big'+(currentRemaining()<=30?' low':'')+'" id="displayClock">'+fmtTime(currentRemaining())+'</div>'+
+      '<div class="row" style="justify-content:center;margin-top:14px">'+
+      '<button id="dispStartBtn" type="button">'+(STATE.timer.running?'Pause':'Start')+'</button>'+
+      '<button class="secondary" id="dispResetBtn" type="button">Reset timer</button>'+
+      '<button class="'+(STATE.revealed?'good':'secondary')+'" id="dispRevealBtn" type="button">'+(STATE.revealed?'Hide answers on this screen':'Show answers on this screen')+'</button>'+
+      '</div></div>';
+    html+='<div class="card"><h2>Word bank</h2><div class="wordbank">'+team.words.map(function(o){
+      var f=team.found[o.text]; var cls=(f?'found':(STATE.revealed?'revealed':''))+(o.special?' special':'');
+      return '<span class="wordchip '+cls+'" title="'+(o.special?'Special word — 3 pts':'1 pt')+'">'+o.text+(o.special?' <span class="starmark">★</span>':'')+(f?' ('+f.by+')':'')+'</span>';
+    }).join('')+'</div></div>';
+    html+='<div class="card"><h2>Puzzle</h2><div id="displayPuzzleWrap" class="puzzleWrap big-puzzle"></div></div>';
+  }
+  html+='<div class="card"><h2>End of game</h2><p class="small">When every team has had their turn, end the game here to announce the winner and MVP to everyone in real time.</p>'+
+    '<button class="danger" id="dispEndGameBtn" type="button">🏆 End Game &amp; Announce Winner</button></div>';
+  html+='</div>';
+  app.innerHTML=html;
+  updateConnPill();
+  app.querySelectorAll('.tabbtn').forEach(function(b){b.onclick=function(){adminTab=b.dataset.tab;rerender();};});
+  if(team) paintPuzzle($('#displayPuzzleWrap'), team, false, null, !!STATE.revealed);
+  var startBtn=$('#dispStartBtn');
+  if(startBtn) startBtn.onclick=function(){
+    if(STATE.timer.running){STATE.timer.remaining=currentRemaining();STATE.timer.running=false;STATE.timer.startedAt=null;}
+    else{STATE.timer.running=true;STATE.timer.startedAt=now();}
+    pushState();rerender();
+  };
+  var resetBtn=$('#dispResetBtn');
+  if(resetBtn) resetBtn.onclick=function(){STATE.timer.remaining=STATE.timer.duration;STATE.timer.running=false;STATE.timer.startedAt=null;pushState();rerender();};
+  var revealBtn=$('#dispRevealBtn');
+  if(revealBtn) revealBtn.onclick=function(){STATE.revealed=!STATE.revealed;pushState();rerender();};
+  $('#dispEndGameBtn').onclick=function(){
+    if(!confirm('End the game and announce the winner to everyone now?')) return;
+    STATE.winner=computeWinner(); STATE.gameOver=true; pushState(); rerender();
+  };
+}
+
+/* ============ TEAM VIEW ============ */
+function lockOverlayHTML(isTurn, timerRunning){
+  if(!isTurn) return '<div class="lockoverlay"><div>⏳ Waiting — it\'s not your team\'s turn yet</div></div>';
+  if(!timerRunning) return '<div class="lockoverlay"><div>⏳ You\'re up! Waiting for the organizer to start the timer…</div></div>';
+  return '';
+}
+
+function renderTeamView(tid){
+  var team=findTeam(tid); var app=$('#app'); var isTurn=STATE.currentTeam===tid; var timerRunning=!!STATE.timer.running;
+  var players=team.players.length?team.players:['Player 1'];
+  if(!mySelPlayer||players.indexOf(mySelPlayer)===-1) mySelPlayer=players[0];
+  var wrongCount=team.wrong[mySelPlayer]||0; var guessLocked=wrongCount>=5;
+  var turnLocked = !(isTurn && timerRunning);
+  var canPlay = isTurn && timerRunning && !guessLocked;
+
+  var connPill='<span class="pill" id="connPill">🟠 Connecting…</span>';
+  var scorePill='<span class="pill on" style="margin-left:6px">⭐ '+teamPoints(team)+' pts</span>';
+  var html=brandHeader(team.name, connPill+scorePill);
+  var bannerClass = isTurn ? (timerRunning?'yours':'pending') : 'theirs';
+  var bannerText = isTurn ? (timerRunning?'YOUR TEAM\'S TURN — find a word!':'You\'re up next — waiting for the timer to start') : 'Waiting — it is not your team\'s turn yet';
+  html+='<div class="turnbanner '+bannerClass+'">'+bannerText+'</div>';
+  html+='<div class="grid2">';
+  html+='<div class="card"><h2>Timer</h2><div class="timer'+(currentRemaining()<=30?' low':'')+'" id="teamClock">'+fmtTime(currentRemaining())+'</div>'+
+    (timeUp()?'<div class="pill warn" style="margin-top:8px">TIME\'S UP</div>':'')+'</div>';
+  html+='<div class="card"><h2>Playing as</h2><select id="playerSel">'+players.map(function(p){return '<option'+(p===mySelPlayer?' selected':'')+'>'+p+'</option>';}).join('')+'</select>'+
+    '<div style="margin-top:10px" class="small">Guesses left this word: '+(5-wrongCount)+' / 5</div>'+
+    '<div class="attemptsdots">'+[0,1,2,3,4].map(function(i){return '<span class="'+(i<wrongCount?'used':'')+'"></span>';}).join('')+'</div>'+
+    (guessLocked?'<p class="small" style="color:var(--danger)">Out of guesses for this word — let a teammate try!</p>':'')+'</div>';
+  html+='</div>';
+  html+='<div class="card lockwrap'+(turnLocked?' locked':'')+'"><h2>Word bank</h2><div class="blurtarget wordbank">'+team.words.map(function(o){
+    var f=team.found[o.text]; var cls=(f?'found':'')+(o.special?' special':'');
+    return '<span class="wordchip '+cls+'" title="'+(o.special?'Special word — 3 pts':'1 pt')+'">'+o.text+(o.special?' <span class="starmark">★</span>':'')+(f?' ('+f.by+')':'')+'</span>';
+  }).join('')+'</div>'+lockOverlayHTML(isTurn,timerRunning)+'</div>';
+  html+='<div class="card lockwrap'+(turnLocked?' locked':'')+'"><h2>Puzzle</h2><p class="small">Click-drag across letters in a straight line (any direction) to select a word.</p>'+
+    '<div id="puzzleWrap" class="blurtarget"></div>'+lockOverlayHTML(isTurn,timerRunning)+'</div>';
+
+  app.innerHTML=html;
+  updateConnPill();
+  $('#playerSel').onchange=function(){mySelPlayer=this.value;rerender();};
+
+  paintPuzzle($('#puzzleWrap'), team, canPlay, tid, false);
+}
+
+/* shared puzzle painter used by team view (interactive) and admin live display (read-only).
+   showRevealed controls whether unfound words get highlighted — only ever true on the
+   admin's Live Display, never on a team's own screen. */
+function paintPuzzle(wrap, team, interactive, tid, showRevealed){
+  if(!wrap) return;
+  wrap.innerHTML = team.puzzleHTML;
+  var table = wrap.querySelector('table');
+  if(!table){ wrap.innerHTML='<p class="small">No puzzle table found — ask the organizer to check the pasted HTML.</p>'; return; }
+  var rows=Array.prototype.slice.call(table.rows); var grid=[];
+  rows.forEach(function(tr,r){
+    var rowArr=[];
+    Array.prototype.slice.call(tr.cells).forEach(function(td,c){
+      td.dataset.r=r; td.dataset.c=c;
+      var letter=(td.textContent||'').trim().toUpperCase(); rowArr.push(letter);
+      Object.keys(team.found).forEach(function(w){
+        team.found[w].cells.forEach(function(cell){ if(cell.r===r&&cell.c===c) td.classList.add('found'); });
+      });
+    });
+    grid.push(rowArr);
+  });
+  if(showRevealed) highlightRevealed(table,grid,team);
+  if(interactive) attachDrag(table,grid,team,tid);
+}
+
+function highlightRevealed(table,grid,team){
+  var R=grid.length,C=grid[0]?grid[0].length:0;
+  var dirs=[[0,1],[0,-1],[1,0],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]];
+  team.words.forEach(function(o){
+    var w=o.text;
+    if(team.found[w]) return;
+    outer: for(var r=0;r<R;r++) for(var c=0;c<C;c++){
+      for(var d=0;d<dirs.length;d++){
+        var dr=dirs[d][0],dc=dirs[d][1],ok=true,cells=[];
+        for(var i=0;i<w.length;i++){
+          var rr=r+dr*i,cc=c+dc*i;
+          if(rr<0||cc<0||rr>=R||cc>=C||grid[rr][cc]!==w[i]){ok=false;break;}
+          cells.push([rr,cc]);
+        }
+        if(ok){ cells.forEach(function(rc){var td=table.rows[rc[0]].cells[rc[1]];if(td)td.classList.add('reveal');}); break outer; }
+      }
+    }
+  });
+}
+
+function attachDrag(table,grid,team,tid){
+  function cellAt(r,c){return (table.rows[r]&&table.rows[r].cells[c])||null;}
+  function clearSel(){table.querySelectorAll('td.sel').forEach(function(td){td.classList.remove('sel');});}
+  function lineCells(a,b){
+    var dr=b.r-a.r,dc=b.c-a.c,steps=Math.max(Math.abs(dr),Math.abs(dc));
+    if(steps===0) return [a];
+    if(dr!==0&&dc!==0&&Math.abs(dr)!==Math.abs(dc)) return null;
+    var sr=dr===0?0:dr/Math.abs(dr), sc=dc===0?0:dc/Math.abs(dc), out=[];
+    for(var i=0;i<=steps;i++) out.push({r:a.r+sr*i,c:a.c+sc*i});
+    return out;
+  }
+  table.addEventListener('mousedown',function(e){
+    var td=e.target.closest('td'); if(!td) return;
+    dragging=true; dragStart={r:+td.dataset.r,c:+td.dataset.c}; dragTeamId=tid;
+    clearSel(); td.classList.add('sel'); e.preventDefault();
+  });
+  table.addEventListener('mouseover',function(e){
+    if(!dragging||dragTeamId!==tid) return;
+    var td=e.target.closest('td'); if(!td) return;
+    var cur={r:+td.dataset.r,c:+td.dataset.c}; var cells=lineCells(dragStart,cur);
+    clearSel(); if(cells) cells.forEach(function(p){var t2=cellAt(p.r,p.c);if(t2)t2.classList.add('sel');});
+  });
+  function finishDrag(){
+    if(!dragging||dragTeamId!==tid) return; dragging=false;
+    var selTds=Array.prototype.slice.call(table.querySelectorAll('td.sel'));
+    if(selTds.length<2){clearSel();return;}
+    var cells=selTds.map(function(td){return {r:+td.dataset.r,c:+td.dataset.c};});
+    var letters=cells.map(function(p){return grid[p.r][p.c];}).join('');
+    var rev=letters.split('').reverse().join('');
+    var match=team.words.find(function(o){return !team.found[o.text]&&(o.text===letters||o.text===rev);});
+    if(match){
+      team.found[match.text]={by:mySelPlayer,cells:cells}; team.wrong={};
+      pushState();
+    }else{
+      team.wrong[mySelPlayer]=(team.wrong[mySelPlayer]||0)+1;
+      selTds.forEach(function(td){td.classList.add('bad');});
+      setTimeout(function(){selTds.forEach(function(td){td.classList.remove('bad');});},500);
+      pushState();
+    }
+    clearSel(); rerender();
+  }
+  table.addEventListener('mouseup',finishDrag);
+  document.addEventListener('mouseup',function(){if(dragging)finishDrag();});
+}
+
+function tickClock(){
+  if(tickTimer) clearInterval(tickTimer);
+  tickTimer=setInterval(function(){
+    if(!STATE) return;
+    ['adminClock','teamClock','displayClock'].forEach(function(id){
+      var clockEl=document.getElementById(id); if(!clockEl) return;
+      var rem=currentRemaining(); clockEl.textContent=fmtTime(rem); clockEl.classList.toggle('low',rem<=30);
+    });
+    if(STATE.timer.running&&currentRemaining()<=0){
+      if(isAdmin){
+        STATE.timer.running=false; STATE.timer.remaining=0; STATE.timer.startedAt=null;
+        pushState();
+      }
+    }
+  },1000);
+}
+
+/* ---------- boot ---------- */
+(function boot(){
+  isAdmin = !!adminParam;
+  if(!FIREBASE_READY){ rerender(); return; }
+  if(gameId()){
+    subscribe();
+    rerender(); /* shows loading state until the listener delivers STATE */
+  }else{
+    rerender(); /* setup screen for a brand new game */
+  }
+})();
+})();
+</script>
+</body>
+</html>
